@@ -1,103 +1,95 @@
-// Test Configuration
-let testInfo = {
-  name: `CF 01 - Ramp Home: Insert "How it works" 3-card section between logos and Product Suite`,
-};
-
-// Initialize test and exit if already running
-let testInitiated = initTest(testInfo);
-if (!testInitiated) exportDefaultFalse();
-
-// Main Code
-addStyling(); // No custom CSS needed now, but function kept for consistency
-monitorChangesByConditionAndRun(checkForElements, onElementsFound);
-
-// === MAIN FUNCTIONS ===
-
-function onElementsFound() {
-  try {
-    console.log(`Running Code for: `, testInfo.name, testInfo);
-    document.querySelector(`body`)?.setAttribute(`cf-test-active`, testInfo.name);
-
-    // Anchor: find the Product Suite section and insert our new section right before it
-    const productSuiteGrid = document.querySelector('#product-suite-new') as HTMLElement | null;
-    const productSuiteSection = productSuiteGrid?.closest('section') as HTMLElement | null;
-    if (!productSuiteSection) throw new Error('Product Suite section not found');
-
-    // Idempotency: do not re-insert if already present
-    if (document.getElementById('cf-how-it-works')) {
-      console.warn('How it works section already inserted');
-    } else {
-      productSuiteSection.insertAdjacentElement('beforebegin', <HowItWorksSection />);
+// Helper function to wait for an element to be available in the DOM
+function monitorChangesByConditionAndRun(
+  condition: () => boolean,
+  callback: () => void,
+  disconnectAfterRun: boolean = true,
+) {
+  const observer = new MutationObserver((mutations, obs) => {
+    if (condition()) {
+      callback();
+      if (disconnectAfterRun) {
+        obs.disconnect();
+      }
     }
+  });
 
-    // Inform Coframe SDK the variant has finished rendering
-    window.CFQ = (window.CFQ || []) as any[];
-    window.CFQ.push({ emit: 'variantRendered' });
-  } catch (e) {
-    console.error('Variant error:', e);
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+
+  if (condition()) {
+    callback();
+    if (disconnectAfterRun) {
+      observer.disconnect();
+    }
   }
 }
 
-function checkForElements() {
-  // Check for required elements before running code
-  try {
-    const cfDefined = typeof window.CF !== 'undefined';
-    const productSuiteGrid = document.querySelector('#product-suite-new');
-    const notAlreadyInserted = !document.getElementById('cf-how-it-works');
-
-    console.log('Check: CF defined =>', cfDefined);
-    console.log('Check: #product-suite-new exists =>', !!productSuiteGrid);
-    console.log('Check: how-it-works not yet inserted =>', notAlreadyInserted);
-
-    return cfDefined && !!productSuiteGrid && notAlreadyInserted;
-  } catch (e) {
-    console.error('Check error:', e);
-    return false;
+/**
+ * Main function to apply changes.
+ */
+function applyVariant() {
+  const productSuiteSection = document.querySelector('section.bg-white.spacer-p-t-l');
+  if (!productSuiteSection || !productSuiteSection.parentElement) {
+    console.error('Target section for insertion not found');
+    return;
   }
+
+  if (document.querySelector('#cf-how-it-works')) {
+    console.log('Variant section already exists.');
+    return;
+  }
+
+  productSuiteSection.parentElement.insertBefore(
+    <HowItWorksSection />,
+    productSuiteSection,
+  );
+
+  window.CFQ = window.CFQ || [];
+  window.CFQ.push({ emit: 'variantRendered' });
 }
 
-// === COMPONENTS (TSX with DOM-only runtime) ===
+const isReady = () => document.querySelector('section.bg-white.spacer-p-t-l') !== null;
 
-// Section wrapper with heading and 3-card grid
+monitorChangesByConditionAndRun(isReady, applyVariant);
+
 function HowItWorksSection() {
   return (
-    <section id="cf-how-it-works" className="bg-white spacer-p-t-l">
-      <div className="mx-auto w-full max-w-screen-2xl px-4 md:px-8 lg:px-12 xl:px-16">
-        <div className="mx-auto max-w-[468px] text-center lg:mx-0 lg:text-left">
-          {/* Kicker/eyebrow */}
-          <div className="leading-trim body-s text-hushed">
+    <section id="cf-how-it-works" className="cf:bg-white cf:py-16 cf:px-4 cf:sm:px-6 cf:lg:py-20 cf:lg:px-8">
+      <div className="cf:max-w-7xl cf:mx-auto">
+        <div className="cf:text-center">
+          <h2 className="cf:text-4xl cf:font-bold cf:text-gray-900">
             How it works
-          </div>
-          <h2 className="leading-trim headline-l mt-6">
-            Get set up in three simple steps
           </h2>
-          <p className="leading-trim body-m text-hushed mt-6 lg:mt-8">
-            Connect your tools, set policies that run themselves, and issue cards in minutes.
+          <p className="cf:mt-4 cf:text-lg cf:text-gray-600">
+            Get up and running in a few simple steps.
           </p>
         </div>
-
-        {/* 3-column cards */}
-        <div className="cf:mt-10 gap-6 md:grid md:grid-cols-2 md:gap-y-10 lg:grid-cols-3 xl:grid-cols-3">
-          <HowItWorksCard
-            step="Step 1"
-            title="Connect your systems"
-            body="Plug Ramp into your ERP, HRIS, email, banks, and 200+ integrations so data flows automatically."
-            imgSrc="https://cdn.coframe.com/assets/temp/ramp/image-9c7c8ef4-a1b6-47f3-bc4d-5abf04b96b60.webp"
-            imgAlt="Integration and invoice mockup"
+        <div className="cf:mt-16 cf:grid cf:grid-cols-1 cf:gap-y-12 cf:sm:grid-cols-2 cf:md:grid-cols-4 cf:gap-x-8">
+          <Step
+            icon="user-plus"
+            number={1}
+            title="Sign Up"
+            description="Create your account in minutes. No lengthy paperwork."
           />
-          <HowItWorksCard
-            step="Step 2"
-            title="Set up policies"
-            body="Create approval flows, limits, and controls that enforce themselves—no chasing or manual checks."
-            imgSrc="https://cdn.coframe.com/assets/temp/ramp/image-6d5032a9-4acc-4eca-a097-f7db77d84a46.webp"
-            imgAlt="List and control mockup"
+          <Step
+            icon="credit-card"
+            number={2}
+            title="Issue Cards"
+            description="Instantly issue virtual and physical cards to your team."
           />
-          <HowItWorksCard
-            step="Step 3"
-            title="Issue cards"
-            body="Instantly issue virtual and physical cards with built‑in controls to keep spend in policy."
-            imgSrc="https://cdn.coframe.com/assets/temp/ramp/image-9c7c8ef4-a1b6-47f3-bc4d-5abf04b96b60.webp"
-            imgAlt="Card mockup"
+          <Step
+            icon="settings-2"
+            number={3}
+            title="Set Controls"
+            description="Customize spending limits and rules for every card."
+          />
+          <Step
+            icon="trending-up"
+            number={4}
+            title="Start Saving"
+            description="Track spending in real-time and find savings opportunities."
           />
         </div>
       </div>
@@ -105,91 +97,27 @@ function HowItWorksSection() {
   );
 }
 
-// Single card
-function HowItWorksCard(props: { step: string; title: string; body: string; imgSrc: string; imgAlt: string }) {
-  const { step, title, body, imgSrc, imgAlt } = props;
-
+function Step({ icon, number, title, description }: {
+  icon: string;
+  number: number;
+  title: string;
+  description: string;
+}) {
   return (
-    <div className="bg-grayLight rounded-xl overflow-hidden">
-      <div className="cf:p-6">
-        {/* White inner mockup box */}
-        <div className="cf:bg-white cf:rounded-lg cf:border cf:border-black-100 cf:overflow-hidden cf:aspect-[16/10] cf:flex cf:items-center cf:justify-center">
-          <img
-            src={imgSrc}
-            alt={imgAlt}
-            width={1200}
-            height={800}
-            className="cf:w-full cf:h-full cf:object-contain"
-            loading="lazy"
-          />
+    <div className="cf:text-center cf:md:text-left">
+      <div className="cf:flex cf:items-center cf:justify-center cf:md:justify-start">
+        <div className="cf:flex cf:items-center cf:justify-center cf:size-12 cf:rounded-lg cf:border cf:border-gray-400">
+          <i data-lucide={icon} className="cf:size-6 cf:text-gray-900" />
         </div>
-
-        {/* Text content below */}
-        <div className="cf:mt-6 cf:space-y-2">
-          <div className="leading-trim body-xs text-hushed">{step}</div>
-          <div className="leading-trim body-xl text-primary">{title}</div>
-          <div className="leading-trim body-s text-hushed">{body}</div>
-        </div>
+      </div>
+      <div className="cf:mt-5">
+        <h3 className="cf:text-lg cf:font-semibold cf:text-gray-900">
+          {number}. {title}
+        </h3>
+        <p className="cf:mt-2 cf:text-base cf:text-gray-600">
+          {description}
+        </p>
       </div>
     </div>
   );
-}
-
-// === HELPER FUNCTIONS ===
-function addStyling() {
-  // No custom CSS required. Tailwind utilities with cf: prefix are used for variant elements.
-  // This function is kept in case a later iteration needs scoped CSS.
-}
-
-function monitorChangesByConditionAndRun(check: () => boolean, code: () => void, keepChecking = false) {
-  let checkAndRun = () => {
-    try {
-      if (check()) {
-        if (!keepChecking) observer.disconnect();
-        code();
-      }
-    } catch (e) {
-      console.error('monitor error:', e);
-    }
-  };
-  const observer = new MutationObserver(checkAndRun);
-  observer.observe(document.documentElement, {
-    childList: true,
-    subtree: true,
-  });
-  checkAndRun(); // Run once immediately
-
-  // 10s observer killswitch
-  if (!keepChecking) setTimeout(() => observer.disconnect(), 10000);
-}
-
-function initTest() {
-  // Obtain or Create Object For Tests
-  let cfObj = (window.CF || { qaTesting: false, testsRunning: [] }) as any;
-
-  // Check Whether Test Is Already Running
-  if (cfObj.testsRunning.find((test: any) => test.name == testInfo.name)) {
-    console.warn(`The following test is already running: `, testInfo);
-    return false;
-  }
-
-  // Add Test to List of Running Tests
-  cfObj.testsRunning = [...cfObj.testsRunning, testInfo];
-
-  // Update Global Object
-  (window as any).CF = { ...window.CF, ...cfObj };
-
-  return { ...(window as any).CF };
-}
-
-// Helper to avoid top-level return in TSX file
-function exportDefaultFalse() {
-  // no-op; keeps TSX valid if early exit is needed
-}
-
-declare global {
-  interface Window {
-    CF?: any;
-    CFQ?: any[];
-  }
 }
