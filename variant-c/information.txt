@@ -1,0 +1,4 @@
+Variant C Changes
+1. Changed the hero section for a different one, using one of the website's images. This image required some editing such as removing background and erasing either side so it didnt end on a sharp edge. Besides There was the need of creating an alternative version for mobile zoomed into the card so it worked better on mobile.
+2. As the hero background became white there was the need of removing the transition of the navbar text and keep it dark so it didnt disappears when on top.
+3. Fixed some padding issues as well.
